@@ -1,42 +1,64 @@
-﻿# 🔄 Shutdown Restore Service
+# Shutdown Restore Service
 
 A lightweight, native Windows Service written in C++ that automatically creates a System Restore Point every time you shut down your PC. It intercepts the shutdown signal (`PRESHUTDOWN`), bypasses the Windows 24-hour restriction, creates a new backup, and rotates old ones to save disk space.
 
 ---
 
-## 🇪🇸 Descripción en Español
+## Technical Overview
 
-Este proyecto es un Servicio de Windows escrito en C++ que se ejecuta de manera silenciosa en segundo plano. Está diseñado para interceptar la señal de apagado del sistema, crear un nuevo Punto de Restauración y eliminar el más antiguo. Esto garantiza que siempre dispongas de una copia de seguridad reciente antes de apagar el equipo, por si surge algún problema en el siguiente arranque.
+This project is a Windows Service designed to run silently in the background. Its primary purpose is to ensure a recent system state backup is available before every shutdown, mitigating risks from failed updates or configuration changes in the next boot.
 
-### ✨ Características Principales
+### Core Features
 
-* **Completamente invisible**: Se ejecuta en segundo plano sin interfaces gráficas ni interrupciones.
-* **Integración nativa**: Utiliza las APIs nativas de Windows (`SRSetRestorePoint`) y WMI para gestionar los puntos de restauración.
-* **Evasión del límite de 24 horas**: Por defecto, Windows solo permite crear un punto de restauración automático al día. Este servicio evade dicha restricción modificando el registro de forma segura (`SystemRestorePointCreationFrequency = 0`).
-* **Rotación de copias (Rolling Backup)**: Elimina el punto de restauración más antiguo antes de crear uno nuevo, evitando así que el disco duro se llene.
+* **Background Execution**: Runs entirely in the background as a Windows Service with no GUI.
+* **Native Integration**: Leverages native Windows APIs (`SRSetRestorePointW`) and WMI queries for restore point enumeration.
+* **Frequency Limit Bypass**: Windows natively restricts automatic restore points to one per 24 hours. This service safely overrides this limitation by modifying the registry (`SystemRestorePointCreationFrequency = 0`).
+* **Rolling Backup Strategy**: Enumerates existing system restore points and removes the oldest backup before creating a new one, maintaining a fixed rolling window and preventing disk exhaustion.
 
-### 📋 Requisitos
+### System Requirements
 
-* **Sistema Operativo**: Windows 10 o Windows 11.
-* **Protección del sistema**: Los Puntos de Restauración deben estar **activados** en tu unidad principal (normalmente `C:`).
-* **Entorno de desarrollo**: CMake y Visual Studio Build Tools (C++) para la compilación.
+* **OS**: Windows 10 or Windows 11 (64-bit).
+* **System Protection**: Must be enabled on the system drive (C:).
+* **Build Tools**: CMake and MSVC (Visual Studio Build Tools) required for compiling from source.
 
 ---
 
-## 🚀 Instalación y Uso
+## Build and Installation
 
-### 1. Compilación
-Para compilar el proyecto, simplemente haz doble clic en el archivo `build.bat`. 
-Este script generará automáticamente una carpeta `build/` y compilará la versión `Release` del programa utilizando CMake.
+### 1. Compilation
+To build the project from source, execute the provided `build.bat` script.
+This script automatically generates a `build/` directory and compiles the `Release` version of the executable using CMake.
 
-### 2. Instalación del Servicio
-> **⚠️ IMPORTANTE**: Todos los comandos de instalación requieren permisos de Administrador.
+### 2. Service Installation
+**Note**: All installation commands require Administrative privileges.
 
-1. Abre una ventana de **CMD** o **PowerShell** como Administrador.
-2. Navega hasta el directorio donde se ha generado el ejecutable:
+1. Open **Command Prompt** or **PowerShell** as Administrator.
+2. Navigate to the generated release directory:
+   ```cmd
+   cd C:\Path\To\Your\Directory\build\Release
+   ```
+3. Install and start the service by executing:
+   ```cmd
+   ShutdownRestoreService.exe --install
+   ```
 
-   cd C:\Ruta\Al\Directorio\build\Release
+Once installed, the service will register a `SERVICE_CONTROL_PRESHUTDOWN` handler. Upon computer shutdown, it will temporarily pause the shutdown sequence, create the restore point, remove the oldest one, and resume the shutdown.
 
-3. Instala e inicia el servicio ejecutando:
-      
-      ShutdownRestoreService.exe --install
+---
+
+## Additional Commands
+
+You can verify the core logic without shutting down the system using the test mode (requires Administrator privileges):
+
+```cmd
+ShutdownRestoreService.exe --test
+```
+
+To uninstall and remove the service from the system:
+
+```cmd
+ShutdownRestoreService.exe --uninstall
+```
+
+## Logging
+The service does not emit standard output while running. For debugging purposes, it generates a log file named `ShutdownRestore.log` in the same directory as the executable. This file contains the complete execution flow, sequence numbers, and any encountered errors.
